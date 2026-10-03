@@ -96,3 +96,19 @@ describe('tool handler argument validation', () => {
     expect(call).toHaveBeenCalledWith('get_photo_metadata', { photo_id: 914 });
   });
 });
+
+describe('set_title_caption validation', () => {
+  const ids = { photo_ids: ['1'] };
+
+  it('accepts a title, a caption, or both', () => {
+    expect(validateToolArgs('set_title_caption', { ...ids, title: 'Seilibost Bay' })).toBeNull();
+    expect(validateToolArgs('set_title_caption', { ...ids, caption: 'Low tide.\n\nPortra 400' })).toBeNull();
+    expect(validateToolArgs('set_title_caption', { ...ids, title: '', caption: '' })).toBeNull();
+  });
+
+  it('rejects calls with neither field, wrong types, or unknown fields', () => {
+    expect(validateToolArgs('set_title_caption', ids)).not.toBeNull();
+    expect(validateToolArgs('set_title_caption', { ...ids, title: 5 })).toContain('title');
+    expect(validateToolArgs('set_title_caption', { ...ids, headline: 'x' })).not.toBeNull();
+  });
+});

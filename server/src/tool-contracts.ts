@@ -276,6 +276,31 @@ export const TOOL_CONTRACTS: ToolContract[] = [
     },
   },
   {
+    name: "set_title_caption",
+    luaHandler: "HandlerMetadata.setTitleCaption",
+    description:
+      "Set the IPTC title and/or caption of photos. A field that is not given is left unchanged; an empty string clears it. Captions may contain newlines.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        photo_ids: photoIdArray("Array of photo IDs or file paths"),
+        title: {
+          type: "string",
+          maxLength: 256,
+          description: "Title to set (at most 256 bytes; empty string clears)",
+        },
+        caption: {
+          type: "string",
+          maxLength: 2000,
+          description: "Caption to set (at most 2000 bytes, the IPTC limit; empty string clears)",
+        },
+      },
+      required: ["photo_ids"],
+      anyOf: [{ required: ["title"] }, { required: ["caption"] }],
+    },
+  },
+  {
     name: "list_collections",
     luaHandler: "HandlerCollections.listCollections",
     description: "List all collections in Lightroom catalog (paginated, default limit 100)",

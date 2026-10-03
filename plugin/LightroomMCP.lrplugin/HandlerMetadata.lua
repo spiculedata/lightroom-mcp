@@ -250,4 +250,62 @@ function MetadataHandler.setGps(args)
     }
 end
 
+-- IPTC caps Caption-Abstract at 2000 bytes; title is kept short for the same
+-- reason. Lightroom's Lua 5.1 has no utf8 library, so limits are in bytes.
+local MAX_TITLE_BYTES = 256
+local MAX_CAPTION_BYTES = 2000
+
+local function requireOptionalText(value, name, limit)
+    if value ~= nil and (type(value) ~= "string" or #value > limit) then
+        error(string.format("%s must be a string of at most %d bytes", name, limit))
+    end
+end
+
+-- Writes title and/or caption to photos. A field that is not given is left
+-- untouched; an empty string clears it.
+function MetadataHandler.setTitleCaption(args)
+    if not args.photo_ids or #args.photo_ids == 0 then
+        error("photo_ids is required")
+    end
+    if args.title == nil and args.caption == nil then
+        error("title or caption is required")
+    end
+    requireOptionalText(args.title, "title", MAX_TITLE_BYTES)
+    requireOptionalText(args.caption, "caption", MAX_CAPTION_BYTES)
+
+    local catalog = LrApplication.activeCatalog()
+    local updatedCount = 0
+    local missingIds = {}
+    local missingCount = 0
+
+    local resolved = PhotoLookup.resolveMany(catalog, args.photo_ids)
+
+    catalog:withWriteAccessDo("Set title and caption", function()
+        for _, entry in ipairs(resolved) do
+            if entry.photo then
+                if args.title ~= nil then
+                    entry.photo:setRawMetadata('title', args.title)
+                end
+                if args.caption ~= nil then
+                    entry.photo:setRawMetadata('caption', args.caption)
+                end
+                updatedCount = updatedCount + 1
+            else
+                missingCount = missingCount + 1
+                missingIds[missingCount] = tostring(entry.id)
+            end
+        end
+    end)
+
+    Log.info(string.format("Set title/caption for %d photos", updatedCount))
+
+    return {
+        success = true,
+        updated = updatedCount,
+        missing = missingIds,
+        message = string.format("Set title/caption for %d photos (%d ids not found)",
+            updatedCount, missingCount)
+    }
+end
+
 return MetadataHandler

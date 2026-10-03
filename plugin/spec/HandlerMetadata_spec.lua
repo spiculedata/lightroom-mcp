@@ -272,3 +272,80 @@ describe("HandlerMetadata.setGps", function()
         assert.is_nil(p1:getRawMetadata("gps"))
     end)
 end)
+
+describe("HandlerMetadata.setTitleCaption", function()
+    it("writes title and caption to found photos", function()
+        local p1 = helper.fakePhoto({ id = "1", path = "/a.jpg", title = "old", caption = "old" })
+        local p2 = helper.fakePhoto({ id = "2", path = "/b.jpg" })
+        local _, Handler = setup({ p1, p2 })
+
+        local r = Handler.setTitleCaption({
+            photo_ids = { "1", "2" },
+            title = "Seilibost Bay, Isle of Harris",
+            caption = "Low tide at Seilibost.\n\nMamiya 7 · 80mm · Portra 400 · 6x7",
+        })
+
+        assert.is_true(r.success)
+        assert.are.equal(2, r.updated)
+        assert.are.equal("Seilibost Bay, Isle of Harris", p1:getFormattedMetadata("title"))
+        assert.are.equal("Low tide at Seilibost.\n\nMamiya 7 · 80mm · Portra 400 · 6x7",
+            p1:getFormattedMetadata("caption"))
+        assert.are.equal("Seilibost Bay, Isle of Harris", p2:getFormattedMetadata("title"))
+    end)
+
+    it("leaves the field that is not given untouched", function()
+        local p1 = helper.fakePhoto({ id = "1", path = "/a.jpg", title = "keep me", caption = "old" })
+        local _, Handler = setup({ p1 })
+
+        Handler.setTitleCaption({ photo_ids = { "1" }, caption = "new caption" })
+
+        assert.are.equal("keep me", p1:getFormattedMetadata("title"))
+        assert.are.equal("new caption", p1:getFormattedMetadata("caption"))
+    end)
+
+    it("clears a field when given an empty string", function()
+        local p1 = helper.fakePhoto({ id = "1", path = "/a.jpg", title = "Untitled" })
+        local _, Handler = setup({ p1 })
+
+        Handler.setTitleCaption({ photo_ids = { "1" }, title = "" })
+
+        assert.are.equal("", p1:getFormattedMetadata("title"))
+    end)
+
+    it("resolves photos OUTSIDE the write-access gate", function()
+        local p1 = helper.fakePhoto({ id = "1", path = "/a.jpg" })
+        local catalog, Handler = setup({ p1 })
+
+        Handler.setTitleCaption({ photo_ids = { "1" }, title = "t" })
+
+        assert.is_false(catalog.getQueriedInsideWriteAccess())
+    end)
+
+    it("reports unknown photos instead of claiming a silent success", function()
+        local p1 = helper.fakePhoto({ id = "1", path = "/a.jpg" })
+        local _, Handler = setup({ p1 })
+
+        local r = Handler.setTitleCaption({ photo_ids = { "1", "missing" }, title = "t" })
+
+        assert.are.equal(1, r.updated)
+        assert.are.same({ "missing" }, r.missing)
+    end)
+
+    it("rejects bad arguments before scanning or writing", function()
+        local p1 = helper.fakePhoto({ id = "1", path = "/a.jpg", title = "orig" })
+        local catalog, Handler = setup({ p1 })
+
+        assert.has_error(function() Handler.setTitleCaption({ title = "t" }) end, "photo_ids is required")
+        assert.has_error(function() Handler.setTitleCaption({ photo_ids = { "1" } }) end,
+            "title or caption is required")
+        assert.has_error(function() Handler.setTitleCaption({ photo_ids = { "1" }, title = 5 }) end,
+            "title must be a string of at most 256 bytes")
+        assert.has_error(function() Handler.setTitleCaption({ photo_ids = { "1" }, title = string.rep("x", 257) }) end,
+            "title must be a string of at most 256 bytes")
+        assert.has_error(function() Handler.setTitleCaption({ photo_ids = { "1" }, caption = string.rep("x", 2001) }) end,
+            "caption must be a string of at most 2000 bytes")
+
+        assert.are.equal(0, catalog.getQueryCount())
+        assert.are.equal("orig", p1:getFormattedMetadata("title"))
+    end)
+end)

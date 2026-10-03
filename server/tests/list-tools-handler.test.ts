@@ -14,6 +14,7 @@ const EXPECTED_TOOL_NAMES = [
   'get_selected_photos',
   'get_photo_metadata',
   'set_gps',
+  'set_title_caption',
   'list_collections',
   'create_collection',
   'add_to_collection',
@@ -34,8 +35,8 @@ const EXPECTED_TOOL_NAMES = [
 ] as const;
 
 describe('TOOL_DEFINITIONS', () => {
-  it('contains exactly 21 tools', () => {
-    expect(TOOL_DEFINITIONS).toHaveLength(21);
+  it('contains exactly 22 tools', () => {
+    expect(TOOL_DEFINITIONS).toHaveLength(22);
   });
 
   it('tool names are unique', () => {
@@ -88,6 +89,7 @@ describe('tool required fields', () => {
   it.each<[string, string[]]>([
     ['get_photo_metadata', ['photo_id']],
     ['set_gps', ['photo_ids', 'latitude', 'longitude']],
+    ['set_title_caption', ['photo_ids']],
     ['create_collection', ['name']],
     ['add_to_collection', ['collection_name', 'photo_ids']],
     ['set_keywords', ['photo_ids']],
@@ -142,6 +144,7 @@ describe('photo array schema', () => {
   it.each([
     ['add_to_collection', 'photo_ids'],
     ['set_gps', 'photo_ids'],
+    ['set_title_caption', 'photo_ids'],
     ['set_keywords', 'photo_ids'],
     ['set_rating', 'photo_ids'],
     ['export_photos', 'photo_ids'],
@@ -322,5 +325,16 @@ describe('tool contracts vs Lua dispatch', () => {
       expect(dispatch[action]).toBe(luaHandler);
       expect(TOOL_CONTRACTS.some((contract) => contract.name === action)).toBe(false);
     }
+  });
+});
+
+describe('set_title_caption schema', () => {
+  it('accepts title and caption strings capped at the IPTC byte limits', () => {
+    const tool = TOOL_DEFINITIONS.find((t) => t.name === 'set_title_caption');
+    const properties = tool?.inputSchema.properties as Record<string, { type?: string; maxLength?: number }>;
+
+    expect(properties.title).toMatchObject({ type: 'string', maxLength: 256 });
+    expect(properties.caption).toMatchObject({ type: 'string', maxLength: 2000 });
+    expect(tool?.inputSchema.anyOf).toEqual([{ required: ['title'] }, { required: ['caption'] }]);
   });
 });

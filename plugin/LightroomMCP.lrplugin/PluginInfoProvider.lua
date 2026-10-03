@@ -188,6 +188,7 @@ local DISPATCH = {
     add_to_collection = HandlerCollections.addToCollection,
     get_photo_metadata = HandlerMetadata.getPhotoMetadata,
     set_gps = HandlerMetadata.setGps,
+    set_title_caption = HandlerMetadata.setTitleCaption,
     set_keywords = HandlerOrganization.setKeywords,
     list_keywords = HandlerKeywords.listKeywords,
     set_rating = HandlerOrganization.setRating,
